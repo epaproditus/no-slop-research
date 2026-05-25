@@ -1,0 +1,1300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>No-Slop Research Dashboard</title>
+    <style>
+        /* ===== CSS RESET & VARIABLES ===== */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #1c2333;
+            --bg-card: #1a1f2e;
+            --bg-hover: #21262d;
+            --border: #30363d;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --text-muted: #6e7681;
+            --accent: #58a6ff;
+            --accent-hover: #79c0ff;
+            --green: #3fb950;
+            --green-bg: rgba(63,185,80,0.1);
+            --red: #f85149;
+            --red-bg: rgba(248,81,73,0.1);
+            --yellow: #d29922;
+            --yellow-bg: rgba(210,153,34,0.1);
+            --purple: #bc8cff;
+            --purple-bg: rgba(188,140,255,0.1);
+            --orange: #f0883e;
+            --radius: 8px;
+            --radius-lg: 12px;
+            --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+            --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            --font-mono: "SF Mono", "Fira Code", "Fira Mono", monospace;
+        }
+        body {
+            font-family: var(--font);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.5;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+        /* ===== HEADER ===== */
+        .header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 18px;
+            font-weight: 600;
+        }
+        .header-brand .icon { font-size: 24px; }
+        .header-brand .version {
+            font-size: 11px;
+            background: var(--accent);
+            color: var(--bg-primary);
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-weight: 700;
+        }
+        .header-nav {
+            display: flex;
+            gap: 4px;
+        }
+        .header-nav button {
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--text-secondary);
+            padding: 8px 16px;
+            border-radius: var(--radius);
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .header-nav button:hover {
+            color: var(--text-primary);
+            background: var(--bg-hover);
+        }
+        .header-nav button.active {
+            color: var(--text-primary);
+            background: var(--bg-tertiary);
+            border-color: var(--border);
+        }
+
+        /* ===== LAYOUT ===== */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* ===== CARDS ===== */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* ===== GRID ===== */
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+        @media (max-width: 900px) {
+            .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+        }
+
+        /* ===== STATS ===== */
+        .stat-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--accent);
+            line-height: 1.2;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 4px;
+        }
+        .stat-card.green .stat-value { color: var(--green); }
+        .stat-card.red .stat-value { color: var(--red); }
+        .stat-card.yellow .stat-value { color: var(--yellow); }
+        .stat-card.purple .stat-value { color: var(--purple); }
+
+        /* ===== BUTTONS ===== */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: var(--radius);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: var(--accent);
+            color: var(--bg-primary);
+            border-color: var(--accent);
+        }
+        .btn-primary:hover {
+            background: var(--accent-hover);
+            border-color: var(--accent-hover);
+        }
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+        .btn-secondary:hover {
+            background: var(--bg-hover);
+        }
+        .btn-danger {
+            background: var(--red-bg);
+            color: var(--red);
+            border-color: var(--red);
+        }
+        .btn-danger:hover {
+            background: var(--red);
+            color: white;
+        }
+        .btn-sm { padding: 4px 10px; font-size: 12px; }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* ===== FORMS ===== */
+        .form-group {
+            margin-bottom: 14px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 8px 12px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text-primary);
+            font-size: 14px;
+            font-family: var(--font);
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(88,166,255,0.15);
+        }
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+        .form-group .hint {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* ===== TABLE ===== */
+        .table-wrap { overflow-x: auto; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 10px 14px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+        }
+        th {
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        tr:hover td { background: var(--bg-hover); }
+
+        /* ===== BADGES ===== */
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .badge-green { background: var(--green-bg); color: var(--green); }
+        .badge-red { background: var(--red-bg); color: var(--red); }
+        .badge-yellow { background: var(--yellow-bg); color: var(--yellow); }
+        .badge-blue { background: rgba(88,166,255,0.1); color: var(--accent); }
+        .badge-purple { background: var(--purple-bg); color: var(--purple); }
+
+        /* ===== PHASE TIMELINE ===== */
+        .timeline {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 16px 0;
+            overflow-x: auto;
+        }
+        .timeline-step {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+        }
+        .timeline-dot {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            border: 2px solid var(--border);
+            background: var(--bg-primary);
+            color: var(--text-muted);
+        }
+        .timeline-dot.active {
+            border-color: var(--accent);
+            background: var(--accent);
+            color: var(--bg-primary);
+        }
+        .timeline-dot.done {
+            border-color: var(--green);
+            background: var(--green);
+            color: var(--bg-primary);
+        }
+        .timeline-line {
+            width: 30px;
+            height: 2px;
+            background: var(--border);
+        }
+        .timeline-line.done { background: var(--green); }
+        .timeline-line.active { background: var(--accent); }
+
+        /* ===== TEAM COMPARISON ===== */
+        .team-panel {
+            border-radius: var(--radius);
+            padding: 16px;
+            border: 1px solid var(--border);
+        }
+        .team-a { border-left: 3px solid var(--green); }
+        .team-b { border-left: 3px solid var(--red); }
+        .team-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+        .team-a .team-header { color: var(--green); }
+        .team-b .team-header { color: var(--red); }
+
+        /* ===== RESEARCH FORM ===== */
+        .research-form {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+        .research-input-row {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+        .research-input-row .form-group { flex: 1; margin-bottom: 0; }
+        .research-input-row textarea {
+            min-height: 48px;
+            max-height: 120px;
+        }
+
+        /* ===== PROGRESS BAR ===== */
+        .progress-bar {
+            height: 6px;
+            background: var(--bg-primary);
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: var(--accent);
+            border-radius: 3px;
+            transition: width 0.5s ease;
+        }
+        .progress-fill.green { background: var(--green); }
+        .progress-fill.yellow { background: var(--yellow); }
+
+        /* ===== MODAL ===== */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.6);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            max-width: 520px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        /* ===== LOADING ===== */
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(13,17,23,0.8);
+            z-index: 300;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .loading-overlay.show { display: flex; }
+        .loading-text {
+            font-size: 16px;
+            color: var(--text-secondary);
+        }
+
+        /* ===== REPORT VIEWER ===== */
+        .report-viewer {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            max-height: 600px;
+            overflow-y: auto;
+            font-size: 14px;
+            line-height: 1.7;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .report-viewer h1, .report-viewer h2, .report-viewer h3 {
+            margin: 16px 0 8px;
+            color: var(--accent);
+        }
+
+        /* ===== EMPTY STATE ===== */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+        .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+        .empty-state h3 { color: var(--text-secondary); margin-bottom: 8px; }
+
+        /* ===== TOAST ===== */
+        .toast-container {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            z-index: 400;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .toast {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 12px 16px;
+            font-size: 13px;
+            box-shadow: var(--shadow);
+            animation: slideIn 0.3s ease;
+            max-width: 360px;
+        }
+        .toast.success { border-left: 3px solid var(--green); }
+        .toast.error { border-left: 3px solid var(--red); }
+        .toast.info { border-left: 3px solid var(--accent); }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } }
+
+        /* ===== SCROLLBAR ===== */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-primary); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+        /* ===== IMPROVEMENT POINTS ===== */
+        .improvement-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+        .improvement-item:last-child { border-bottom: none; }
+        .improvement-status {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+        .improvement-status.resolved { background: var(--green-bg); color: var(--green); }
+        .improvement-status.pending { background: var(--yellow-bg); color: var(--yellow); }
+    </style>
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<header class="header">
+    <div class="header-brand">
+        <span class="icon">🔍</span>
+        <span>No-Slop Research</span>
+        <span class="version">v1.0</span>
+    </div>
+    <nav class="header-nav">
+        <button class="active" onclick="switchTab('research')">🔬 Research</button>
+        <button onclick="switchTab('active')">⚡ Active</button>
+        <button onclick="switchTab('history')">📋 History</button>
+        <button onclick="switchTab('keys')">🔑 API Keys</button>
+        <button onclick="switchTab('settings')">⚙️ Settings</button>
+    </nav>
+</header>
+
+<!-- ===== MAIN CONTENT ===== -->
+<div class="container">
+
+    <!-- ===== RESEARCH TAB ===== -->
+    <div id="tab-research" class="tab-content active">
+        <div class="research-form">
+            <h2 style="margin-bottom:16px;font-size:20px;">🔬 Start New Research</h2>
+            <p style="color:var(--text-secondary);margin-bottom:16px;font-size:14px;">
+                Enter a topic or question. The system will run multi-phase adversarial research to eliminate bias, gaps, and unverified claims.
+            </p>
+            <div class="form-group">
+                <label>Research Topic / Question</label>
+                <textarea id="research-topic" placeholder="e.g., What is the current state of quantum computing in 2025? Who are the key players and what are the remaining challenges?"></textarea>
+                <div class="hint">Be specific. The more detailed your question, the better the research.</div>
+            </div>
+            <div class="grid-3" style="margin-bottom:16px;">
+                <div class="form-group">
+                    <label>Max Adversarial Rounds</label>
+                    <select id="research-rounds">
+                        <option value="1">1 round (fast)</option>
+                        <option value="2">2 rounds (balanced)</option>
+                        <option value="3" selected>3 rounds (thorough)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Research Agents</label>
+                    <select id="research-agents">
+                        <option value="2">2 agents (quick)</option>
+                        <option value="4" selected>4 agents (comprehensive)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Research Depth</label>
+                    <select id="research-depth">
+                        <option value="surface">Surface (top results)</option>
+                        <option value="standard" selected>Standard (5-10 sources/agent)</option>
+                        <option value="deep">Deep (15+ sources/agent)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="grid-2" style="margin-bottom:16px;">
+                <div class="form-group">
+                    <label>Additional Context (optional)</label>
+                    <input type="text" id="research-context" placeholder="e.g., Focus on B2B SaaS market, exclude China">
+                </div>
+                <div class="form-group">
+                    <label>Output Format</label>
+                    <select id="research-format">
+                        <option value="full" selected>Full Report</option>
+                        <option value="executive">Executive Summary Only</option>
+                        <option value="bullets">Bullet Points</option>
+                    </select>
+                </div>
+            </div>
+            <div style="display:flex;gap:12px;align-items:center;">
+                <button class="btn btn-primary" onclick="startResearch()" id="btn-start-research">
+                    🚀 Start Adversarial Research
+                </button>
+                <span id="research-status" style="font-size:13px;color:var(--text-muted);"></span>
+            </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="grid-4" id="research-stats">
+            <div class="stat-card">
+                <div class="stat-value" id="stat-total-runs">0</div>
+                <div class="stat-label">Total Runs</div>
+            </div>
+            <div class="stat-card green">
+                <div class="stat-value" id="stat-completed">0</div>
+                <div class="stat-label">Completed</div>
+            </div>
+            <div class="stat-card yellow">
+                <div class="stat-value" id="stat-running">0</div>
+                <div class="stat-label">Running</div>
+            </div>
+            <div class="stat-card purple">
+                <div class="stat-value" id="stat-avg-rounds">0</div>
+                <div class="stat-label">Avg Rounds</div>
+            </div>
+        </div>
+
+        <!-- Recent Results -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">📊 Recent Research Results</div>
+                <button class="btn btn-sm btn-secondary" onclick="loadRuns()">Refresh</button>
+            </div>
+            <div id="recent-runs-list">
+                <div class="empty-state">
+                    <div class="icon">🔬</div>
+                    <h3>No research runs yet</h3>
+                    <p>Start your first adversarial research above!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== ACTIVE PIPELINES TAB ===== -->
+    <div id="tab-active" class="tab-content">
+        <h2 style="margin-bottom:16px;font-size:20px;">⚡ Active Research Pipelines</h2>
+        <div id="active-pipelines">
+            <div class="empty-state">
+                <div class="icon">⚡</div>
+                <h3>No active pipelines</h3>
+                <p>Start a research run to see it here in real-time.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== HISTORY TAB ===== -->
+    <div id="tab-history" class="tab-content">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <h2 style="font-size:20px;">📋 Research History</h2>
+            <button class="btn btn-sm btn-secondary" onclick="loadRuns()">🔄 Refresh</button>
+        </div>
+        <div class="card">
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Topic</th>
+                            <th>Status</th>
+                            <th>Phase</th>
+                            <th>Round</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-table-body">
+                        <tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">No runs yet</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== API KEYS TAB ===== -->
+    <div id="tab-keys" class="tab-content">
+        <h2 style="margin-bottom:16px;font-size:20px;">🔑 API Key Management</h2>
+        <p style="color:var(--text-secondary);margin-bottom:20px;font-size:14px;">
+            Manage your API keys for LLM providers. Keys are stored locally in SQLite — never sent anywhere except the provider's API endpoint.
+        </p>
+
+        <div class="grid-2">
+            <!-- Add Key Form -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">➕ Add API Key</div>
+                </div>
+                <div class="form-group">
+                    <label>Provider</label>
+                    <select id="key-provider" onchange="onProviderChange()">
+                        <option value="openai">OpenAI</option>
+                        <option value="openrouter">OpenRouter</option>
+                        <option value="anthropic">Anthropic</option>
+                        <option value="groq">Groq</option>
+                        <option value="together">Together AI</option>
+                        <option value="deepseek">DeepSeek</option>
+                        <option value="custom">Custom (OpenAI-compatible)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Key Name</label>
+                    <input type="text" id="key-name" placeholder="e.g., My OpenAI Key">
+                </div>
+                <div class="form-group">
+                    <label>API Key</label>
+                    <input type="password" id="key-value" placeholder="sk-...">
+                    <div class="hint">Stored locally. Only sent to the provider's API endpoint.</div>
+                </div>
+                <div class="form-group" id="key-base-url-group" style="display:none;">
+                    <label>Base URL</label>
+                    <input type="text" id="key-base-url" placeholder="https://api.example.com/v1">
+                </div>
+                <div class="form-group">
+                    <label>Model (optional)</label>
+                    <input type="text" id="key-model" placeholder="e.g., gpt-4o">
+                    <div class="hint">Default model to use. Can be overridden per research run.</div>
+                </div>
+                <button class="btn btn-primary" onclick="addApiKey()" style="width:100%;">
+                    💾 Save API Key
+                </button>
+            </div>
+
+            <!-- Existing Keys -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">🔐 Saved Keys</div>
+                    <button class="btn btn-sm btn-secondary" onclick="loadKeys()">Refresh</button>
+                </div>
+                <div id="keys-list">
+                    <div class="empty-state" style="padding:30px;">
+                        <div class="icon">🔑</div>
+                        <h3>No API keys saved</h3>
+                        <p>Add your first key to start researching.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Provider Info -->
+        <div class="card" style="margin-top:16px;">
+            <div class="card-header">
+                <div class="card-title">📚 Supported Providers</div>
+            </div>
+            <div class="grid-3" id="providers-grid"></div>
+        </div>
+    </div>
+
+    <!-- ===== SETTINGS TAB ===== -->
+    <div id="tab-settings" class="tab-content">
+        <h2 style="margin-bottom:16px;font-size:20px;">⚙️ Settings</h2>
+        <div class="grid-2">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">🔧 Pipeline Settings</div>
+                </div>
+                <div class="form-group">
+                    <label>Default Max Rounds</label>
+                    <select id="setting-max-rounds">
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3" selected>3</option>
+                        <option value="5">5</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Default Research Agents</label>
+                    <select id="setting-max-agents">
+                        <option value="2">2</option>
+                        <option value="4" selected>4</option>
+                        <option value="6">6</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Subagent Timeout (seconds)</label>
+                    <input type="number" id="setting-timeout" value="300" min="60" max="900">
+                </div>
+                <button class="btn btn-primary" onclick="saveSettings()">💾 Save Settings</button>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">ℹ️ System Info</div>
+                </div>
+                <div id="system-info" style="font-size:13px;color:var(--text-secondary);">
+                    <p>Loading...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== RUN DETAIL MODAL ===== -->
+<div class="modal-overlay" id="run-detail-modal">
+    <div class="modal" style="max-width:900px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <h2 id="modal-run-title" style="font-size:18px;">Run Details</h2>
+            <button class="btn btn-sm btn-secondary" onclick="closeModal('run-detail-modal')">✕ Close</button>
+        </div>
+        <div id="modal-run-content"></div>
+    </div>
+</div>
+
+<!-- ===== LOADING OVERLAY ===== -->
+<div class="loading-overlay" id="loading-overlay">
+    <div class="spinner" style="width:48px;height:48px;border-width:3px;"></div>
+    <div class="loading-text" id="loading-text">Running adversarial research...</div>
+    <div style="font-size:12px;color:var(--text-muted);" id="loading-subtext">This may take several minutes</div>
+</div>
+
+<!-- ===== TOAST CONTAINER ===== -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- ===== JAVASCRIPT ===== -->
+<script>
+// ===== API Helpers =====
+async function api(url, opts = {}) {
+    const defaults = {
+        headers: { 'Content-Type': 'application/json' },
+    };
+    const res = await fetch(url, { ...defaults, ...opts });
+    return res.json();
+}
+
+function toast(msg, type = 'info') {
+    const c = document.getElementById('toast-container');
+    const t = document.createElement('div');
+    t.className = `toast ${type}`;
+    t.textContent = msg;
+    c.appendChild(t);
+    setTimeout(() => t.remove(), 4000);
+}
+
+function showLoading(text, subtext) {
+    document.getElementById('loading-text').textContent = text || 'Processing...';
+    document.getElementById('loading-subtext').textContent = subtext || '';
+    document.getElementById('loading-overlay').classList.add('show');
+}
+
+function hideLoading() {
+    document.getElementById('loading-overlay').classList.remove('show');
+}
+
+// ===== Tab Navigation =====
+function switchTab(tab) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.header-nav button').forEach(el => el.classList.remove('active'));
+    document.getElementById(`tab-${tab}`).classList.add('active');
+    event.target.classList.add('active');
+
+    // Load data for tab
+    if (tab === 'history') loadRuns();
+    if (tab === 'keys') { loadKeys(); loadProviders(); }
+    if (tab === 'settings') loadSettings();
+    if (tab === 'active') loadActivePipelines();
+    if (tab === 'research') { loadRuns(); loadStats(); }
+}
+
+// ===== Research =====
+async function startResearch() {
+    const topic = document.getElementById('research-topic').value.trim();
+    if (!topic) { toast('Please enter a research topic', 'error'); return; }
+
+    const config = {
+        max_rounds: parseInt(document.getElementById('research-rounds').value),
+        max_research_agents: parseInt(document.getElementById('research-agents').value),
+        depth: document.getElementById('research-depth').value,
+        context: document.getElementById('research-context').value,
+        format: document.getElementById('research-format').value,
+    };
+
+    showLoading('Starting adversarial research...', `Topic: ${topic.substring(0, 80)}...`);
+    document.getElementById('btn-start-research').disabled = true;
+    document.getElementById('research-status').textContent = 'Running...';
+
+    try {
+        const result = await api('/api/research/start', {
+            method: 'POST',
+            body: JSON.stringify({ topic, config })
+        });
+
+        hideLoading();
+        document.getElementById('btn-start-research').disabled = false;
+
+        if (result.success) {
+            toast(`Research complete! ${result.result?.rounds || 0} adversarial rounds.`, 'success');
+            document.getElementById('research-status').textContent = `✓ Complete (${result.run_id})`;
+            loadRuns();
+            loadStats();
+        } else {
+            toast(`Error: ${result.error}`, 'error');
+            document.getElementById('research-status').textContent = 'Error';
+        }
+    } catch (e) {
+        hideLoading();
+        document.getElementById('btn-start-research').disabled = false;
+        toast(`Network error: ${e.message}`, 'error');
+        document.getElementById('research-status').textContent = 'Error';
+    }
+}
+
+async function loadStats() {
+    try {
+        const runs = await api('/api/research/runs');
+        const total = runs.length;
+        const completed = runs.filter(r => r.status === 'completed').length;
+        const running = runs.filter(r => r.status === 'running').length;
+        const avgRounds = total > 0 ? (runs.reduce((s, r) => s + (r.current_round || 0), 0) / total).toFixed(1) : '0';
+
+        document.getElementById('stat-total-runs').textContent = total;
+        document.getElementById('stat-completed').textContent = completed;
+        document.getElementById('stat-running').textContent = running;
+        document.getElementById('stat-avg-rounds').textContent = avgRounds;
+    } catch (e) {}
+}
+
+async function loadRuns() {
+    try {
+        const runs = await api('/api/research/runs');
+        const container = document.getElementById('recent-runs-list');
+        const tbody = document.getElementById('history-table-body');
+
+        if (runs.length === 0) {
+            container.innerHTML = '<div class="empty-state"><div class="icon">🔬</div><h3>No research runs yet</h3><p>Start your first adversarial research above!</p></div>';
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">No runs yet</td></tr>';
+            return;
+        }
+
+        // Recent runs cards
+        container.innerHTML = runs.slice(0, 5).map(r => `
+            <div style="padding:14px;border-bottom:1px solid var(--border);cursor:pointer;" onclick="viewRun('${r.id}')">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <div>
+                        <div style="font-weight:600;font-size:14px;">${escapeHtml(r.topic).substring(0, 80)}${r.topic.length > 80 ? '...' : ''}</div>
+                        <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">${r.id} · ${r.current_round || 0} rounds · ${formatDate(r.created_at)}</div>
+                    </div>
+                    <span class="badge ${statusBadge(r.status)}">${r.status}</span>
+                </div>
+                ${r.status === 'running' ? `
+                    <div class="progress-bar" style="margin-top:8px;">
+                        <div class="progress-fill" style="width:${phaseProgress(r.current_phase)}%"></div>
+                    </div>
+                ` : ''}
+            </div>
+        `).join('');
+
+        // History table
+        tbody.innerHTML = runs.map(r => `
+            <tr>
+                <td><code style="font-size:12px;">${r.id}</code></td>
+                <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(r.topic)}</td>
+                <td><span class="badge ${statusBadge(r.status)}">${r.status}</span></td>
+                <td>${r.current_phase || '-'}</td>
+                <td>${r.current_round || 0}/${r.max_rounds || 3}</td>
+                <td style="font-size:12px;color:var(--text-muted);">${formatDate(r.created_at)}</td>
+                <td>
+                    <button class="btn btn-sm btn-secondary" onclick="viewRun('${r.id}')">View</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteRun('${r.id}')">🗑</button>
+                </td>
+            </tr>
+        `).join('');
+    } catch (e) {
+        console.error('Failed to load runs:', e);
+    }
+}
+
+async function viewRun(runId) {
+    showLoading('Loading run details...');
+    try {
+        const data = await api(`/api/research/runs/${runId}`);
+        hideLoading();
+        const run = data.run;
+
+        document.getElementById('modal-run-title').textContent = `Research: ${run.topic?.substring(0, 60) || runId}`;
+
+        let html = '';
+
+        // Status & Timeline
+        html += `<div style="margin-bottom:16px;">`;
+        html += `<span class="badge ${statusBadge(run.status)}" style="font-size:13px;">${run.status}</span>`;
+        html += ` <span style="color:var(--text-muted);font-size:13px;">Round ${run.current_round || 0}/${run.max_rounds || 3} · ${run.current_phase || 'N/A'}</span>`;
+        html += `</div>`;
+
+        // Phase timeline
+        const phases = ['research', 'profile', 'adversarial', 'synthesis', 'report'];
+        const currentIdx = phases.indexOf(run.current_phase);
+        html += `<div class="timeline">`;
+        phases.forEach((p, i) => {
+            const cls = i < currentIdx ? 'done' : (i === currentIdx ? 'active' : '');
+            html += `<div class="timeline-step"><div class="timeline-dot ${cls}">${i+1}</div><span style="font-size:11px;color:var(--text-muted);">${p}</span></div>`;
+            if (i < phases.length - 1) html += `<div class="timeline-line ${cls}"></div>`;
+        });
+        html += `</div>`;
+
+        // Team comparison
+        const teamResults = data.phases.filter(p => p.team === 'validator' || p.team === 'challenger');
+        if (teamResults.length > 0) {
+            html += `<h3 style="margin:16px 0 8px;">⚔️ Team A vs Team B</h3>`;
+            html += `<div class="grid-2">`;
+
+            const validators = teamResults.filter(p => p.team === 'validator');
+            const challengers = teamResults.filter(p => p.team === 'challenger');
+
+            html += `<div class="team-panel team-a"><div class="team-header">✅ Team A (Validators)</div>`;
+            if (validators.length > 0) {
+                const last = validators[validators.length - 1];
+                html += `<div style="font-size:12px;white-space:pre-wrap;max-height:200px;overflow-y:auto;">${escapeHtml(last.result?.substring(0, 1000) || 'No data')}</div>`;
+            } else {
+                html += `<div style="color:var(--text-muted);font-size:13px;">Not yet run</div>`;
+            }
+            html += `</div>`;
+
+            html += `<div class="team-panel team-b"><div class="team-header">🔴 Team B (Challengers)</div>`;
+            if (challengers.length > 0) {
+                const last = challengers[challengers.length - 1];
+                html += `<div style="font-size:12px;white-space:pre-wrap;max-height:200px;overflow-y:auto;">${escapeHtml(last.result?.substring(0, 1000) || 'No data')}</div>`;
+            } else {
+                html += `<div style="color:var(--text-muted);font-size:13px;">Not yet run</div>`;
+            }
+            html += `</div>`;
+            html += `</div>`;
+        }
+
+        // Improvement points
+        const synthResults = data.phases.filter(p => p.improvement_points);
+        if (synthResults.length > 0) {
+            html += `<h3 style="margin:16px 0 8px;">🎯 Improvement Points</h3>`;
+            synthResults.forEach(s => {
+                try {
+                    const points = JSON.parse(s.improvement_points);
+                    points.forEach((p, i) => {
+                        html += `<div class="improvement-item">
+                            <div class="improvement-status pending">?</div>
+                            <div style="font-size:13px;">${escapeHtml(p)}</div>
+                        </div>`;
+                    });
+                } catch (e) {}
+            });
+        }
+
+        // Subagent logs
+        if (data.subagents.length > 0) {
+            html += `<h3 style="margin:16px 0 8px;">🤖 Subagent Activity</h3>`;
+            html += `<div class="table-wrap"><table><thead><tr><th>Phase</th><th>Round</th><th>Role</th><th>Status</th><th>Duration</th></tr></thead><tbody>`;
+            data.subagents.forEach(s => {
+                html += `<tr>
+                    <td>${s.phase}</td>
+                    <td>${s.round_num}</td>
+                    <td>${s.agent_role}</td>
+                    <td><span class="badge ${s.status === 'completed' ? 'badge-green' : s.status === 'running' ? 'badge-yellow' : 'badge-red'}">${s.status}</span></td>
+                    <td>${s.duration_ms ? (s.duration_ms/1000).toFixed(1)+'s' : '-'}</td>
+                </tr>`;
+            });
+            html += `</tbody></table></div>`;
+        }
+
+        // Final report
+        if (run.final_report) {
+            html += `<h3 style="margin:16px 0 8px;">📄 Final Report</h3>`;
+            html += `<div class="report-viewer">${escapeHtml(run.final_report)}</div>`;
+        }
+
+        document.getElementById('modal-run-content').innerHTML = html;
+        document.getElementById('run-detail-modal').classList.add('show');
+    } catch (e) {
+        hideLoading();
+        toast('Failed to load run details', 'error');
+    }
+}
+
+async function deleteRun(runId) {
+    if (!confirm('Delete this research run? This cannot be undone.')) return;
+    try {
+        await api(`/api/research/runs/${runId}`, { method: 'DELETE' });
+        toast('Run deleted', 'success');
+        loadRuns();
+        loadStats();
+    } catch (e) {
+        toast('Failed to delete run', 'error');
+    }
+}
+
+// ===== Active Pipelines =====
+async function loadActivePipelines() {
+    try {
+        const runs = await api('/api/research/runs');
+        const active = runs.filter(r => r.status === 'running');
+        const container = document.getElementById('active-pipelines');
+
+        if (active.length === 0) {
+            container.innerHTML = '<div class="empty-state"><div class="icon">⚡</div><h3>No active pipelines</h3><p>Start a research run to see it here.</p></div>';
+            return;
+        }
+
+        container.innerHTML = active.map(r => `
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">🔬 ${escapeHtml(r.topic).substring(0, 60)}</div>
+                    <span class="badge badge-yellow">RUNNING</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-secondary);margin-bottom:8px;">
+                    <span>Phase: ${r.current_phase || 'starting'}</span>
+                    <span>Round: ${r.current_round || 0}/${r.max_rounds || 3}</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width:${phaseProgress(r.current_phase)}%"></div>
+                </div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:8px;">ID: ${r.id} · Started: ${formatDate(r.created_at)}</div>
+            </div>
+        `).join('');
+    } catch (e) {}
+}
+
+// ===== API Keys =====
+async function loadKeys() {
+    try {
+        const keys = await api('/api/keys');
+        const container = document.getElementById('keys-list');
+
+        if (keys.length === 0) {
+            container.innerHTML = '<div class="empty-state" style="padding:30px;"><div class="icon">🔑</div><h3>No API keys saved</h3><p>Add your first key to start researching.</p></div>';
+            return;
+        }
+
+        container.innerHTML = keys.map(k => `
+            <div style="padding:12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                    <div style="font-weight:600;font-size:14px;">${escapeHtml(k.key_name)}</div>
+                    <div style="font-size:12px;color:var(--text-muted);">
+                        <span class="badge ${k.is_active ? 'badge-green' : 'badge-red'}">${k.is_active ? 'Active' : 'Disabled'}</span>
+                        ${k.provider} · ${k.key_masked} · ${k.base_url || 'default URL'}
+                    </div>
+                </div>
+                <div style="display:flex;gap:6px;">
+                    <button class="btn btn-sm btn-secondary" onclick="toggleKey(${k.id})">${k.is_active ? 'Disable' : 'Enable'}</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteKey(${k.id})">🗑</button>
+                </div>
+            </div>
+        `).join('');
+    } catch (e) {}
+}
+
+function onProviderChange() {
+    const provider = document.getElementById('key-provider').value;
+    const urlGroup = document.getElementById('key-base-url-group');
+    urlGroup.style.display = provider === 'custom' ? 'block' : 'none';
+
+    // Auto-fill name
+    const nameField = document.getElementById('key-name');
+    if (!nameField.value) {
+        const names = { openai: 'OpenAI', openrouter: 'OpenRouter', anthropic: 'Anthropic', groq: 'Groq', together: 'Together AI', deepseek: 'DeepSeek', custom: 'Custom' };
+        nameField.value = `${names[provider] || provider} Key`;
+    }
+}
+
+async function addApiKey() {
+    const provider = document.getElementById('key-provider').value;
+    const keyName = document.getElementById('key-name').value.trim();
+    const keyValue = document.getElementById('key-value').value.trim();
+    const baseUrl = document.getElementById('key-base-url').value.trim();
+    const modelName = document.getElementById('key-model').value.trim();
+
+    if (!keyValue) { toast('Please enter an API key', 'error'); return; }
+
+    try {
+        const result = await api('/api/keys', {
+            method: 'POST',
+            body: JSON.stringify({ provider, key_name: keyName, key_value: keyValue, base_url: baseUrl, model_name: modelName })
+        });
+
+        if (result.success) {
+            toast('API key saved!', 'success');
+            document.getElementById('key-value').value = '';
+            document.getElementById('key-name').value = '';
+            document.getElementById('key-model').value = '';
+            loadKeys();
+        } else {
+            toast(result.error || 'Failed to save key', 'error');
+        }
+    } catch (e) {
+        toast('Network error', 'error');
+    }
+}
+
+async function deleteKey(id) {
+    if (!confirm('Delete this API key?')) return;
+    try {
+        await api(`/api/keys/${id}`, { method: 'DELETE' });
+        toast('Key deleted', 'success');
+        loadKeys();
+    } catch (e) {
+        toast('Failed to delete key', 'error');
+    }
+}
+
+async function toggleKey(id) {
+    try {
+        await api(`/api/keys/${id}/toggle`, { method: 'POST' });
+        loadKeys();
+    } catch (e) {}
+}
+
+async function loadProviders() {
+    try {
+        const providers = await api('/api/providers');
+        const grid = document.getElementById('providers-grid');
+        grid.innerHTML = Object.entries(providers).map(([key, p]) => `
+            <div style="padding:12px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius);">
+                <div style="font-weight:600;margin-bottom:4px;">${p.name}</div>
+                <div style="font-size:11px;color:var(--text-muted);">
+                    ${p.base_url || 'Configurable URL'}<br>
+                    ${p.models.length > 0 ? `Models: ${p.models.slice(0, 3).join(', ')}` : 'Custom models'}
+                </div>
+            </div>
+        `).join('');
+    } catch (e) {}
+}
+
+// ===== Settings =====
+async function loadSettings() {
+    try {
+        const settings = await api('/api/settings');
+        if (settings.max_rounds) document.getElementById('setting-max-rounds').value = settings.max_rounds;
+        if (settings.max_agents) document.getElementById('setting-max-agents').value = settings.max_agents;
+        if (settings.timeout) document.getElementById('setting-timeout').value = settings.timeout;
+    } catch (e) {}
+
+    // System info
+    try {
+        const health = await api('/api/health');
+        const keys = await api('/api/keys');
+        document.getElementById('system-info').innerHTML = `
+            <p><strong>Status:</strong> <span class="badge badge-green">${health.status}</span></p>
+            <p><strong>Version:</strong> ${health.version}</p>
+            <p><strong>Database:</strong> ${health.db ? 'Connected' : 'Not found'}</p>
+            <p><strong>API Keys:</strong> ${keys.length} configured</p>
+            <p><strong>Last check:</strong> ${formatDate(health.timestamp)}</p>
+        `;
+    } catch (e) {}
+}
+
+async function saveSettings() {
+    const settings = {
+        max_rounds: document.getElementById('setting-max-rounds').value,
+        max_agents: document.getElementById('setting-max-agents').value,
+        timeout: document.getElementById('setting-timeout').value,
+    };
+    try {
+        await api('/api/settings', { method: 'POST', body: JSON.stringify(settings) });
+        toast('Settings saved!', 'success');
+    } catch (e) {
+        toast('Failed to save settings', 'error');
+    }
+}
+
+// ===== Utility Functions =====
+function escapeHtml(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+function formatDate(iso) {
+    if (!iso) return '-';
+    try {
+        const d = new Date(iso);
+        return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch (e) { return iso; }
+}
+
+function statusBadge(status) {
+    const map = { completed: 'badge-green', running: 'badge-yellow', error: 'badge-red', pending: 'badge-blue', queued: 'badge-purple' };
+    return map[status] || 'badge-blue';
+}
+
+function phaseProgress(phase) {
+    const map = { pending: 0, research: 20, profile: 40, adversarial: 60, synthesis: 80, report: 95, completed: 100 };
+    return map[phase] || 0;
+}
+
+function closeModal(id) {
+    document.getElementById(id).classList.remove('show');
+}
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(el => {
+    el.addEventListener('click', (e) => {
+        if (e.target === el) el.classList.remove('show');
+    });
+});
+
+// ===== Init =====
+document.addEventListener('DOMContentLoaded', () => {
+    loadRuns();
+    loadStats();
+});
+</script>
+</body>
+</html>
