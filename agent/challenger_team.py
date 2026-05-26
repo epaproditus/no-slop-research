@@ -51,6 +51,8 @@ Attack from these angles:
 
 OUTPUT FORMAT:
 
+Begin your response with these sections IN ORDER:
+
 ## CHALLENGE SUMMARY
 Overall assessment: How vulnerable is this research?
 Rate: BULLETPROOF / MINOR GAPS / SIGNIFICANT FLAWS / CRITICALLY WEAK
@@ -64,16 +66,15 @@ For each weakness found:
 
 ## IMPROVEMENT POINTS
 Numbered list of SPECIFIC, ACTIONABLE improvements needed.
-Each point should be concrete enough that a researcher could execute it.
+Each point should start with "[IMPROVE-N]" like this:
 
-Format each improvement point as:
-[IMPROVE-1] <description of what needs to be fixed and how>
-[IMPROVE-2] <description>
-...
+[IMPROVE-1] Description of what needs to be fixed and how
+[IMPROVE-2] Description of what needs to be fixed and how
 
 ## CHALLENGE VERDICT
-What's the single biggest vulnerability in this research?
-What would make this 10x stronger?
+What's the single biggest vulnerability? What would make this 10x stronger?
+
+Do not leave any section empty. If you find genuinely no flaws, state that explicitly but still produce at least minor improvement suggestions.
 
 Be brutal. Be specific. Be constructive. Your goal is to make this research UNBREAKABLE."""
 

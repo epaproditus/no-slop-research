@@ -23,6 +23,10 @@ from .validator_team import ValidatorTeam
 from .challenger_team import ChallengerTeam
 from .synthesizer import Synthesizer
 from .report_generator import ReportGenerator
+from .llm_client import call_llm, load_config
+
+# Whether we're running inside Hermes (using delegate_task) or standalone
+STANDALONE = os.environ.get("HERMES_ACTIVE", "").lower() != "true"
 
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "dashboard", "research.db")
 
@@ -91,6 +95,15 @@ class ResearchPipeline:
         self.max_rounds = self.config.get("max_rounds", int(os.environ.get("MAX_ADVERSARIAL_ROUNDS", "3")))
         self.max_research_agents = self.config.get("max_research_agents", int(os.environ.get("MAX_RESEARCH_AGENTS", "4")))
 
+        # LLM config for standalone mode
+        self.llm_config = load_config()
+        if "api_key" in self.config:
+            self.llm_config["api_key"] = self.config["api_key"]
+        if "base_url" in self.config:
+            self.llm_config["base_url"] = self.config["base_url"]
+        if "model_name" in self.config:
+            self.llm_config["model"] = self.config["model_name"]
+
         # Initialize phases
         self.research = ResearchPhase(self.config)
         self.profile_builder = ProfileBuilder()
@@ -121,6 +134,13 @@ class ResearchPipeline:
         conn.execute(f"UPDATE research_runs SET {sets} WHERE id = ?", vals)
         conn.commit()
         conn.close()
+
+    def _llm_or_return(self, prompt: str, system_prompt: str = None) -> str:
+        """In standalone mode, actually call the LLM. In Hermes mode, return the prompt."""
+        if STANDALONE:
+            self._log(f"Calling LLM ({len(prompt)} chars)...")
+            return call_llm(prompt, system_prompt=system_prompt, config=self.llm_config)
+        return prompt
 
     def _log_phase(self, phase: str, round_num: int, team: str, result: str, improvement_points: list = None):
         """Log a phase result to DB."""
@@ -184,10 +204,12 @@ class ResearchPipeline:
             # ===== PHASE 2: PROFILE BUILDING =====
             self._log("Phase 2: Building Research Profile...")
             self._update_db(current_phase="profile")
-            self.profile = self.profile_builder.build(
+            profile_prompt = self.profile_builder.build(
                 topic=self.topic,
                 research_data=self.research_data
             )
+            self.profile = self._llm_or_return(profile_prompt,
+                system_prompt="You are a research synthesis expert. Compile raw research data into a structured profile.")
             self._log_phase("profile", 0, "synthesis", self.profile[:2000])
             self._update_db(research_profile=self.profile)
             self._log(f"Profile built: {len(self.profile)} chars.")
@@ -201,11 +223,13 @@ class ResearchPipeline:
                 self._log(f"Round {round_num}: Team A (Validators) interrogating...")
                 self._log_subagent("adversarial", round_num, "validator", 0, "running")
                 start = time.time()
-                self.validation_result = self.validator.validate(
+                val_prompt = self.validator.validate(
                     topic=self.topic,
                     profile=self.profile,
                     round_num=round_num
                 )
+                self.validation_result = self._llm_or_return(val_prompt,
+                    system_prompt="You are a rigorous VALIDATOR — fact-checker and evidence analyst. Be honest, not comforting.")
                 duration = int((time.time() - start) * 1000)
                 self._log_subagent("adversarial", round_num, "validator", 0, "completed",
                                    self.validation_result[:1000], duration_ms=duration)
@@ -216,11 +240,14 @@ class ResearchPipeline:
                 self._log(f"Round {round_num}: Team B (Challengers) attacking...")
                 self._log_subagent("adversarial", round_num, "challenger", 0, "running")
                 start = time.time()
-                self.challenge_result = self.challenger.challenge(
+                chal_prompt = self.challenger.challenge(
                     topic=self.topic,
                     profile=self.profile,
                     round_num=round_num
                 )
+                self.challenge_result = self._llm_or_return(chal_prompt,
+                    system_prompt="You are a CHALLENGER — professional skeptic and devil's advocate. Be ruthless but constructive.")
+                self._log(f"Challenge response: {len(self.challenge_result)} chars")
                 duration = int((time.time() - start) * 1000)
                 self._log_subagent("adversarial", round_num, "challenger", 0, "completed",
                                    self.challenge_result[:1000], duration_ms=duration)
@@ -247,7 +274,7 @@ class ResearchPipeline:
                 # ===== PHASE 4: SYNTHESIS & RE-RESEARCH =====
                 self._log(f"Phase 4: Synthesizing {len(self.improvement_points)} improvements...")
                 self._update_db(current_phase="synthesis")
-                self.profile = self.synthesizer.merge(
+                syn_prompt = self.synthesizer.merge(
                     topic=self.topic,
                     original_profile=self.profile,
                     improvement_points=self.improvement_points,
@@ -255,6 +282,8 @@ class ResearchPipeline:
                     challenge_result=self.challenge_result,
                     round_num=round_num
                 )
+                self.profile = self._llm_or_return(syn_prompt,
+                    system_prompt="You are a RESEARCH SYNTHESIZER. Merge improvements into a stronger profile. Be thorough.")
                 self._log_phase("synthesis", round_num, "synthesis", self.profile[:2000],
                                 self.improvement_points)
                 self._log(f"Synthesis complete. Profile updated ({len(self.profile)} chars).")
@@ -262,7 +291,7 @@ class ResearchPipeline:
             # ===== PHASE 5: FINAL REPORT =====
             self._log("Phase 5: Generating Final Report...")
             self._update_db(current_phase="report")
-            self.final_report = self.reporter.generate(
+            report_prompt = self.reporter.generate(
                 topic=self.topic,
                 profile=self.profile,
                 history=self.history,
@@ -270,6 +299,13 @@ class ResearchPipeline:
                 challenge_result=self.challenge_result,
                 total_rounds=len(self.history)
             )
+            self.final_report = self._llm_or_return(report_prompt,
+                system_prompt="You are a RESEARCH REPORT WRITER. Compile validated research into a professional, publication-ready report.")
+            self._log(f"Final report LLM response: {len(self.final_report)} chars")
+            if not self.final_report:
+                self._log(f"WARNING: Empty report! Prompt was {len(report_prompt)} chars")
+                # Fallback: use profile as the report
+                self.final_report = self.profile
             self._update_db(status="completed", current_phase="completed", final_report=self.final_report)
             self._log(f"★ Pipeline complete! Final report: {len(self.final_report)} chars.")
 

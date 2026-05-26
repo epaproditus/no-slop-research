@@ -35,8 +35,29 @@ RESEARCH_ANGLES = [
 ]
 
 
-def _build_research_prompt(topic: str, angle: dict) -> str:
+def _build_research_prompt(topic: str, angle: dict, standalone: bool = False) -> str:
     """Build a self-contained research prompt for a subagent."""
+    if standalone:
+        return f"""You are a deep research agent. Your job is to produce COMPREHENSIVE, FACTUAL research on the following topic using your training knowledge.
+
+TOPIC: {topic}
+
+YOUR ANGLE: {angle['name'].upper()} — {angle['focus']}
+
+INSTRUCTIONS:
+{angle['instruction']}
+
+OUTPUT FORMAT:
+Return your findings as a structured research dump with:
+
+- KEY FACTS: Bullet list of verified facts (what you know with high confidence)
+- DATA POINTS: Specific numbers, statistics, metrics (approximate where exact figures unavailable, but label clearly)
+- CONTRADICTIONS: Any conflicting information or competing perspectives
+- GAPS: What you're uncertain about or couldn't verify
+- SOURCES: Note where your information comes from (known companies, reports, trends)
+
+Be thorough and specific. Provide at least 15-20 bullet points of substantive facts. Do NOT fabricate specifics — clearly label estimates and confidence levels."""
+    
     return f"""You are a deep research agent. Your job is to gather COMPREHENSIVE, FACTUAL research on the following topic.
 
 TOPIC: {topic}
@@ -116,14 +137,25 @@ class ResearchPhase:
         return prompts  # Return prompts for the skill to execute
 
     def _run_direct(self, topic: str, angles: list) -> list:
-        """Run research directly using available tools (standalone mode)."""
+        """Run research directly using LLM calls (standalone mode)."""
         results = []
         for angle in angles:
-            result = self._research_angle(topic, angle)
-            results.append({
-                "angle": angle["name"],
-                "data": result
-            })
+            prompt = _build_research_prompt(topic, angle, standalone=True)
+            try:
+                from .llm_client import call_llm
+                result = call_llm(
+                    prompt,
+                    system_prompt=f"You are a deep research agent focusing on {angle['name']} angle. Be thorough, cite specifics, admit what you don't know."
+                )
+                results.append({
+                    "angle": angle["name"],
+                    "data": result
+                })
+            except Exception as e:
+                results.append({
+                    "angle": angle["name"],
+                    "data": f"Research error: {e}\n\nFallback prompt:\n{prompt}"
+                })
         return results
 
     def _research_angle(self, topic: str, angle: dict) -> str:
@@ -160,10 +192,10 @@ class ResearchPhase:
         return "\n".join(sections)
 
 
-def get_research_prompts(topic: str, num_agents: int = 4) -> list:
+def get_research_prompts(topic: str, num_agents: int = 4, standalone: bool = False) -> list:
     """
     Public helper: get research prompts for manual execution.
     Used by the Hermes skill to spawn delegate_task calls.
     """
     angles = RESEARCH_ANGLES[:num_agents]
-    return [_build_research_prompt(topic, angle) for angle in angles]
+    return [_build_research_prompt(topic, angle, standalone=standalone) for angle in angles]
